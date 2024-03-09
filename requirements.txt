@@ -1,0 +1,14 @@
+transformers==4.30.2
+accelerate==0.21.0
+bitsandbytes==0.40.2
+datasets==2.13.1
+hydra-core
+pynvml
+sentencepiece
+einops
+sentence-transformers==2.2.2
+llama-index-core
+llama-index-llms-replicate
+llama-index-embeddings-huggingface
+llama-index-vector-stores-elasticsearch
+llama-index-vector-stores-milvus
