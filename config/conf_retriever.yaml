@@ -13,8 +13,8 @@ model:
 train:
   batch_size: 32
   epochs: 3
-  evaluation_steps: 100
-  use_all_docs: true
+  evaluation_steps: 1000
+  use_all_docs: false
   train_data_file: ../../data/sci_retriever/train_dataset.json
 
 eval:
