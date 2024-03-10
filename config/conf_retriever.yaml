@@ -1,0 +1,23 @@
+debug: false
+use_random_seed: false
+seed: 461
+
+dataset:
+  data_dir: ../../data/sci_retriever
+
+model:
+    model_name: BAAI/bge-base-en-v1.5
+    model_path: ../../models/bge-base-en-v1.5
+    model_output_path: ../../results/retriever/bge-base-en-v1.5
+
+train:
+  batch_size: 32
+  epochs: 3
+  evaluation_steps: 100
+  use_all_docs: false
+  train_data_file: ../../data/sci_retriever/train_dataset.json
+
+eval:
+  top_k: 5
+  output_dir: ../../results/retriever_eval
+  val_data_file: ../../data/sci_retriever/val_dataset.json
