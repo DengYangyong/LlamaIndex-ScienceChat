@@ -1,21 +1,29 @@
 import json
 import os
 import pandas as pd
+import hydra
+from omegaconf import DictConfig
 
 
-def load_dataset():
-
-    data_dir = "../../data/sci_retriever"
+@hydra.main(version_base=None, config_path="../../config", config_name="conf_retriever")
+def load_dataset(cfg: DictConfig):
+    data_dir = cfg["dataset"]["data_dir"]
     # load dataframe
     query_df = pd.read_parquet(os.path.join(data_dir, "sci_queries.parquet"))
     content_df = pd.read_parquet(os.path.join(data_dir, "sci_contents.parquet"))
     labels_df = pd.read_parquet(os.path.join(data_dir, "sci_labels.parquet"))
     fold_df = pd.read_parquet(os.path.join(data_dir, "sci_folds.parquet"))
 
+    if cfg["debug"]:
+        fold_df = fold_df.sample(n=200, random_state=42)
+
     # split data into train, val
     is_train = fold_df['is_train'] == 1
+
     labels_df_train = labels_df[labels_df["query_id"].isin(fold_df[is_train]["query_id"])]
     labels_df_val = labels_df[labels_df["query_id"].isin(fold_df[~is_train]["query_id"])]
+    print("Train size: ", labels_df_train.shape[0])
+    print("Val size: ", labels_df_val.shape[0])
 
     query_df_train = query_df[query_df["query_id"].isin(labels_df_train["query_id"])]
     query_df_val = query_df[query_df["query_id"].isin(labels_df_val["query_id"])]
@@ -36,7 +44,6 @@ def load_dataset():
 
 
 def data_to_json(query_df, content_df, labels_df):
-
     id2queries = dict(
         zip(query_df['query_id'], query_df[["prompt", "A", "B", "C", "D", "E"]].apply(lambda x: " | ".join(x), axis=1))
     )
@@ -56,6 +63,7 @@ def data_to_json(query_df, content_df, labels_df):
     }
 
     return json_data
+
 
 if __name__ == "__main__":
     load_dataset()
