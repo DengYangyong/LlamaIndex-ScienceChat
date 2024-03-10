@@ -1,0 +1,32 @@
+debug: false
+use_random_seed: true
+seed: 461
+
+dataset:
+  data_dir: ../data/
+
+embedding:
+  MiniLM-L6-v2:
+    model_name: sentence-transformers/all-MiniLM-L6-v2
+    max_length: 384
+
+  Bge-Base-En:
+    model_name: BAAI/bge-base-en-v1.5
+    model_path: ../data/bge-base-en-v1.5
+    max_length: 350 # 384
+
+top_k: 20
+
+milvus:
+  url: http://localhost:19530
+  token: root:Milvus
+  collection_name: science_collection
+  embedding_field: science_embedding
+  doc_id_field: science_doc_id
+  index_config: { "index_type": "IVF_FLAT", "metric_type": "IP", "params": {"nlist": 16384} }
+
+elasticsearch:
+  url: http://localhost:9200
+  index_name: science_index
+  api_key: ""
+  text_field: scientific_text
