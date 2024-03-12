@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 import hydra
 from llama_index.finetuning import EmbeddingQAFinetuneDataset, SentenceTransformersFinetuneEngine
@@ -11,6 +12,23 @@ import pandas as pd
 from sentence_transformers.evaluation import InformationRetrievalEvaluator
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
+from llama_index.embeddings.langchain import LangchainEmbedding
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
+
+class RetrieverFinetuneEngine(SentenceTransformersFinetuneEngine):
+    def finetune(self, **train_kwargs: Any) -> None:
+        """Finetune model."""
+        self.model.fit(
+            train_objectives=[(self.loader, self.loss)],
+            epochs=self.epochs,
+            warmup_steps=self.warmup_steps,
+            output_path=self.model_output_path,
+            show_progress_bar=self.show_progress_bar,
+            evaluator=self.evaluator,
+            evaluation_steps=self.evaluation_steps,
+            **train_kwargs
+        )
 
 
 class RetrieverTrainer:
@@ -18,6 +36,7 @@ class RetrieverTrainer:
         self.model_config = config["model"]
         self.train_config = config["train"]
         self.eval_config = config["eval"]
+        self.embed_model = None
 
     def load_dataset(self):
         train_dataset = EmbeddingQAFinetuneDataset.from_json(self.train_config["train_data_file"])
@@ -28,11 +47,11 @@ class RetrieverTrainer:
                   train_dataset: EmbeddingQAFinetuneDataset,
                   val_dataset: EmbeddingQAFinetuneDataset):
 
-        # 自定义 loss 的话，需要先创建模型，然后再创建 loss
+        # define loss
         model = SentenceTransformer(self.model_config["model_name"])
         loss = MultipleNegativesSymmetricRankingLoss(model=model)
 
-        finetune_engine = SentenceTransformersFinetuneEngine(
+        finetune_engine = RetrieverFinetuneEngine(
             train_dataset,
             model_id=self.model_config["model_name"],
             model_output_path=self.model_config["model_output_path"],
@@ -41,33 +60,38 @@ class RetrieverTrainer:
             loss=loss,
             epochs=self.train_config["epochs"],
             evaluation_steps=self.train_config["evaluation_steps"],
-            use_all_docs=self.train_config["use_all_docs"]
+            use_all_docs=self.train_config["use_all_docs"],
         )
-        finetune_engine.finetune()
+
+        # use mixed precision
+        finetune_engine.finetune(use_amp=self.train_config["use_mixed_precision"])
         self.embed_model = finetune_engine.get_finetuned_model()
 
     def run_evaluate(self, val_dataset: EmbeddingQAFinetuneDataset):
 
-        # Load the finetuned model
-        embed_model = SentenceTransformer(self.model_config["model_output_path"])
-
-        hit_rate = self.hit_rate_evaluator(val_dataset)
-        _ = self.ir_evaluator(val_dataset, embed_model)
-
+        _ = self.ir_evaluator(val_dataset)
         model_name = self.model_config["model_name"].split("/")[-1]
         eval_result_file = "Information-Retrieval_evaluation_" + model_name + "_results.csv"
         df_eval_metrics = pd.read_csv(os.path.join(self.eval_config["output_dir"], eval_result_file))
-
-        print("Evaluation done")
-        print("Hit rate: ", hit_rate)
         print("Evaluation metrics: ")
         for metric, value in df_eval_metrics.mean().items():
             print(f"{metric}: {value}")
+
+        hit_rate = self.hit_rate_evaluator(val_dataset)
+        print("Hit rate: ", hit_rate)
+
+        print("Evaluation done")
 
     def hit_rate_evaluator(self, val_dataset: EmbeddingQAFinetuneDataset):
         corpus = val_dataset.corpus
         queries = val_dataset.queries
         relevant_docs = val_dataset.relevant_docs
+
+        if self.embed_model is None:
+            hf_embed_model = HuggingFaceEmbeddings(
+                model_name=self.model_config["model_output_path"]
+            )
+            self.embed_model = LangchainEmbedding(hf_embed_model)
 
         nodes = [TextNode(id_=id_, text=text) for id_, text in corpus.items()]
         index = VectorStoreIndex(
@@ -94,12 +118,14 @@ class RetrieverTrainer:
         hit_rate_ada = df_val["is_hit"].mean()
         return hit_rate_ada
 
-    def ir_evaluator(self, val_dataset: EmbeddingQAFinetuneDataset, embed_model: SentenceTransformer):
+    def ir_evaluator(self, val_dataset: EmbeddingQAFinetuneDataset):
         corpus = val_dataset.corpus
         queries = val_dataset.queries
         relevant_docs = val_dataset.relevant_docs
         relevant_docs = {query_id: set(doc_ids) for query_id, doc_ids in relevant_docs.items()}
 
+        # Load the finetuned model
+        embed_model = SentenceTransformer(self.model_config["model_output_path"])
         model_name = self.model_config["model_name"].split("/")[-1]
         evaluator = InformationRetrievalEvaluator(
             queries, corpus, relevant_docs, name=model_name, show_progress_bar=True
