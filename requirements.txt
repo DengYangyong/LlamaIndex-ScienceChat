@@ -10,6 +10,7 @@ sentence-transformers
 llama-index-core
 llama-index-llms-replicate
 llama-index-embeddings-huggingface
+llama-index-embeddings-langchain
 llama-index-vector-stores-elasticsearch
 llama-index-vector-stores-milvus
 llama-index-finetuning
@@ -17,3 +18,4 @@ elasticsearch
 pymilvus
 langchain
 pandas
+langchain-elasticsearch
