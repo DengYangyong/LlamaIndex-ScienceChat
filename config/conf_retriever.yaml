@@ -15,6 +15,7 @@ train:
   epochs: 3
   evaluation_steps: 1000
   use_all_docs: false
+  use_mixed_precision: true
   train_data_file: ../../data/sci_retriever/train_dataset.json
 
 eval:

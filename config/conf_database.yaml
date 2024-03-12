@@ -1,21 +1,26 @@
 debug: false
+create_database: true
 use_random_seed: true
 seed: 461
 
 dataset:
-  data_dir: ../data/
+  data_dir: ../../data/wikipedia
+  test_query_file: ../../data/kaggle-llm-science-exam/train.csv
+  file_postfixes: [".parquet"]
 
-embedding:
+document:
+  chunk_size: 300
+  top_k: 5
+
+model:
   MiniLM-L6-v2:
     model_name: sentence-transformers/all-MiniLM-L6-v2
     max_length: 384
 
   Bge-Base-En:
-    model_name: BAAI/bge-base-en-v1.5
-    model_path: ../data/bge-base-en-v1.5
-    max_length: 350 # 384
-
-top_k: 20
+    model_name: bge-base-en-fine-tuned
+    model_path: ../../results/retriever/bge-base-en-v1.5
+    max_length: 384
 
 milvus:
   url: http://localhost:19530
@@ -28,5 +33,5 @@ milvus:
 elasticsearch:
   url: http://localhost:9200
   index_name: science_index
-  api_key: ""
   text_field: scientific_text
+  bulk_size: 10
