@@ -1,0 +1,24 @@
+debug: False
+use_random_seed: false
+seed: 461
+
+dataset:
+  data_dir: ../../data/ranker_data
+
+model:
+    model_name: microsoft/deberta-v3-base
+    model_output_path: ../../results/reranker/deberta-v3-base
+
+train:
+  batch_size: 8
+  epochs: 2
+  grad_accumulation: 1
+  evaluation_steps: 1000
+  lr: 5e-6
+  weight_decay: 1e-3
+  train_data_file: ../../data/ranker_data/train_dataset.csv
+
+eval:
+  top_k: 3
+  output_dir: ../../results/reranker_eval
+  val_data_file: ../../data/ranker_data/val_dataset.csv
