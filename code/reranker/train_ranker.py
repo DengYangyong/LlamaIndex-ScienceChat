@@ -17,8 +17,11 @@ from typing import List, Union, Any, Optional,Dict
 from sentence_transformers import SentenceTransformer
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, AutoConfig
 from sentence_transformers.cross_encoder import CrossEncoder
+from sentence_transformers.cross_encoder.evaluation import CEBinaryClassificationEvaluator
 from dataclasses import dataclass
 from omegaconf import DictConfig
+import bitsandbytes as bnb
+from sentence_transformers import InputExample
 from llama_index.finetuning.cross_encoders.cross_encoder import (
     CrossEncoderFinetuneEngine,
 )
@@ -91,12 +94,16 @@ class RerankerFinetuneEngine(CrossEncoderFinetuneEngine):
         loss: Union[Any, None] = None,
         epochs: int = 2,
         show_progress_bar: bool = True,
-        evaluation_steps: int = 50,
+        evaluation_steps: int = 1000,
+        max_length=1024,
         max_grad_norm=1,
         scheduler=None,
-        optimizer_class=None,
         weight_decay=0.01,
-        lr=2e-5
+        beta1=0, 
+        beta2=0,
+        eps=0,
+        lr=2e-5,
+        use_bnb=False
         
     ) -> None:
         super().__init__(
@@ -110,15 +117,29 @@ class RerankerFinetuneEngine(CrossEncoderFinetuneEngine):
             show_progress_bar=show_progress_bar,
             evaluation_steps=evaluation_steps,
         )
-        self.model = RerankerCrossEncoder(self.model_id, num_labels=1)
+        self.model = RerankerCrossEncoder(self.model_id, num_labels=1, max_length=max_length)
         self.max_grad_norm=max_grad_norm
         self.scheduler=scheduler
-        self.optimizer_class=optimizer_class
         self.weight_decay=weight_decay
         self.lr = lr
-    
+        self.beta1=beta1
+        self.beta2=beta2
+        self.eps=eps
+        self.use_bnb=use_bnb
 
     def finetune(self, **train_kwargs: Any) -> None:
+        
+        optimizer_params = {
+            "betas": (self.beta1, self.beta2),
+            "eps": self.eps,
+            "lr": self.lr
+        }
+        
+        if self.use_bnb:
+            self.optimizer_class=bnb.optim.Adam8bit
+        else:
+            self.optimizer_class=torch.optim.AdamW
+            
         self.model.fit(
             train_dataloader=self.loader,
             epochs=self.epochs,
@@ -131,15 +152,14 @@ class RerankerFinetuneEngine(CrossEncoderFinetuneEngine):
             weight_decay=self.weight_decay,
             optimizer_params={"lr": self.lr},
             scheduler=self.scheduler if self.scheduler else "WarmupLinear",
-            optimizer_class=self.optimizer_class if self.optimizer_class else torch.optim.AdamW)
+            optimizer_class=self.optimizer_class)
     
         if self.evaluator is None:
             self.model.save(self.model_output_path)
         else:
             pass
-        
-        
-        
+ 
+
 class RerankerTrainer:
     def __init__(self, config):
         self.model_config = config["model"]
@@ -157,7 +177,7 @@ class RerankerTrainer:
         train_finetuning_data_list = list(train_dataset.apply(lambda x: CrossEncoderFinetuningDatasetSample(query=x['query'], 
                                                              context=x['context'],
                                                              score=x['score']), axis=1))
-        valid_finetuning_data_list = list(train_dataset.apply(lambda x: CrossEncoderFinetuningDatasetSample(query=x['query'], 
+        valid_finetuning_data_list = list(val_dataset.apply(lambda x: CrossEncoderFinetuningDatasetSample(query=x['query'], 
                                                              context=x['context'],
                                                              score=x['score']), axis=1))
         return train_finetuning_data_list, valid_finetuning_data_list
@@ -171,13 +191,33 @@ class RerankerTrainer:
             model_output_path=self.model_config["model_output_path"],
             dataset=train_finetuning_data_list, 
             val_dataset=valid_finetuning_data_list,
+            evaluation_steps=self.train_config['evaluation_steps'],
             epochs=self.train_config["epochs"], 
             batch_size=self.train_config["batch_size"],
             lr=self.train_config["lr"],
-            weight_decay=self.train_config["weight_decay"])
+            weight_decay=self.train_config["weight_decay"],
+            beta1=self.train_config['beta1'],
+            beta2=self.train_config['beta2'],
+            eps=self.train_config['eps'],
+            use_bnb=self.train_config['use_bnb']
+        )
 
         # Finetune the cross-encoder model
         finetuning_engine.finetune()
+    
+    def run_evaluate(self, val_dataset: List[CrossEncoderFinetuningDatasetSample]):
+        dev_samples = []
+        for val_sample in val_dataset:
+            val_query = val_sample.query
+            val_text = val_sample.context
+            val_score = val_sample.score
+            val_example = InputExample(texts=[val_query, val_text], label=val_score)
+            dev_samples.append(val_example)
+
+        model = RerankerCrossEncoder(self.model_config['model_output_path'])
+        evaluator = CEBinaryClassificationEvaluator.from_input_examples(dev_samples,  name="deberta")
+        evaluator(model, output_path=self.eval_config['output_dir'])
+        print("Evaluation done")
         
         
 @hydra.main(version_base=None, config_path="../../config", config_name="conf_reranker")
@@ -185,7 +225,14 @@ def main(cfg: DictConfig):
 
     trainer = RerankerTrainer(cfg)
     train_dataset, val_dataset = trainer.load_dataset()
+    print('Start Training')
+    print('--------------------------------------------------')
     trainer.run_train(train_dataset, val_dataset)
-
+    
+    print('Start Evaluation')
+    print('--------------------------------------------------')
+    trainer.run_evaluate(val_dataset)
+    
+    
 if __name__ == "__main__":
     main()
