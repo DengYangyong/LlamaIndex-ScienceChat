@@ -1,4 +1,4 @@
-debug: False
+debug: true
 use_random_seed: false
 seed: 461
 
@@ -7,15 +7,20 @@ dataset:
 
 model:
     model_name: microsoft/deberta-v3-base
+    max_length: 512
     model_output_path: ../../results/reranker/deberta-v3-base
 
 train:
-  batch_size: 8
-  epochs: 2
+  batch_size: 4
+  epochs: 1
   grad_accumulation: 1
-  evaluation_steps: 1000
+  evaluation_steps: 100
   lr: 5e-6
   weight_decay: 1e-3
+  beta1: 0.9
+  beta2: 0.999
+  eps: 1e-4
+  use_bnb: true
   train_data_file: ../../data/ranker_data/train_dataset.csv
 
 eval:
