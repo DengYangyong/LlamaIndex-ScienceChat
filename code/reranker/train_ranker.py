@@ -140,7 +140,7 @@ class RerankerTrainer:
             label=sample.score
         ) for sample in val_dataset]
 
-        model = RerankerCrossEncoder(self.model_config['model_output_path'])
+        model = RerankerCrossEncoder(self.model_config['model_output_path'], max_length=self.model_config["max_length"])
         evaluator = CEBinaryClassificationEvaluator.from_input_examples(
             dev_samples, name="deberta"
         )
