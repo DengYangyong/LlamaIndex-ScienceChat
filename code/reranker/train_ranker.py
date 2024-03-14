@@ -114,7 +114,7 @@ class RerankerTrainer:
 
         finetune_engine = RerankerFinetuneEngine(
             model_id=self.model_config["model_name"],
-
+            max_length=self.model_config["max_length"],
             model_output_path=self.model_config["model_output_path"],
             dataset=train_data_list,
             val_dataset=valid_data_list,
