@@ -28,7 +28,7 @@ milvus:
   collection_name: science_collection
   embedding_field: science_embedding
   doc_id_field: science_doc_id
-  index_config: { "index_type": "IVF_FLAT", "metric_type": "IP", "params": {"nlist": 16384} }
+  index_config: { "index_type": "HNSW", "metric_type": "IP", "params": {"nlist": 16384} }
 
 elasticsearch:
   url: http://localhost:9200
