@@ -24,11 +24,11 @@ from xtuner.utils import PROMPT_TEMPLATE
 #                          PART 1  Settings                           #
 #######################################################################
 # Model
-pretrained_model_name_or_path = 'meta-llama/Llama-2-7b-chat-hf'  #改路径 ！！
+pretrained_model_name_or_path = '../../meta-llama/Llama-2-7b-chat-hf'  #改路径 ！！就是在根目录的模型的文件夹
 use_varlen_attn = False
 
 # Data
-data_path = '/LlamaIndex-ScienceChat/code/classifier/xtuner_data_train6.json' ### 改路径！！
+data_path = '../../data/xtuner_data_train6.json' ### 改路径！！？？？
 prompt_template = PROMPT_TEMPLATE.llama2_chat_ours ###这个要额外改一下源码，他的不对！！！！！
 max_length = 4090 #这个不确定，每条不定长，看情况，先拉满
 pack_to_max_length = True
