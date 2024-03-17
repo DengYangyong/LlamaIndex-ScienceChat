@@ -3,10 +3,12 @@ import pandas as pd
 import hydra
 from omegaconf import DictConfig
 
+
 def pre_process(df):
     columns = ["prompt", "A", "B", "C", "D", "E"]
     df["query"] = df[columns].apply(lambda x: " | ".join(x), axis=1)
     return df
+
 
 @hydra.main(version_base=None, config_path="../../config", config_name="conf_reranker")
 def load_and_process_data(cfg: DictConfig):

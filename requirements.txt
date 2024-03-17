@@ -1,7 +1,7 @@
 transformers
-accelerate==0.21.0
-bitsandbytes==0.40.2
-datasets==2.13.1
+accelerate
+bitsandbytes
+datasets
 hydra-core
 pynvml
 sentencepiece
@@ -19,3 +19,7 @@ pymilvus
 langchain
 pandas
 langchain-elasticsearch
+peft
+trl
+flash-attn
+deepspeed==0.9.5
