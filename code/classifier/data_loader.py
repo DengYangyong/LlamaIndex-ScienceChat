@@ -53,6 +53,31 @@ def create_prompt(sample):
     return full_prompt
 
 
+def create_prompt_update(examples):
+    bos_token = "<s>[INST] "  # 或者您模型的特定开始标记
+    end_inst_token = " [/INST]"
+    eos_token = "</s>"  # 或者您模型的特定结束标记
+
+    SYSTEM_PREFIX = "Below is an instruction that describes a task, paired with an input that provides further context. \
+        Write a response that appropriately completes the request.\n\n"
+
+    INSTRUCTION = "Your task is to analyze the question and answer below. Here A,B,C,D,E options are given choose the correct \
+        one after Analyzing. As a potential aid to your answer, background context from Wikipedia articles is at your disposal, \
+        even if they might not always be relevant.\n\n"
+
+    formatted_examples = []
+    for prompt, support, A, B, C, D, E, answer in zip(
+            examples['prompt'], examples['support'],
+            examples['A'], examples['B'], examples['C'],
+            examples['D'], examples['E'], examples['answer']):
+        input_text = f"Backgrond Context to help you: \n {support}\n\n Question:\n {prompt}\n\n Options to choose from:\n A: {A}\n, B: {B}\n, C: {C}\n, D: {D}\n, E: {E}{end_inst_token}\n\n Answer:{answer}"
+
+        full_text = f"{bos_token}{SYSTEM_PREFIX}{INSTRUCTION}{input_text}{eos_token}"
+
+        formatted_examples.append(full_text)
+    return formatted_examples
+
+
 def sanitize_df_new(df):
     df = deepcopy(df)
     print(f"df shape before sanitize: {df.shape}")

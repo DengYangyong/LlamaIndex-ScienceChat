@@ -1,13 +1,17 @@
 import os
 import hydra
 from accelerate import Accelerator
+from omegaconf import OmegaConf
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import torch
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from transformers import TrainingArguments
-from trl import SFTTrainer
-from data_loader import create_prompt
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+from data_loader import create_prompt_update
 from datasets import Dataset
+import warnings
+
+warnings.filterwarnings('ignore')
 
 
 class InstructTuneTrainer:
@@ -73,28 +77,35 @@ class InstructTuneTrainer:
         self.tokenizer = tokenizer
 
     def train(self, train_dataset: Dataset, val_dataset: Dataset):
-
         args = TrainingArguments(
             output_dir=self.model_cfg["model_output_dir"],
             num_train_epochs=self.train_cfg["num_epochs"],
             per_device_train_batch_size=self.train_cfg["batch_size"],
             gradient_accumulation_steps=self.train_cfg["gradient_accumulation_steps"],
+            evaluation_strategy="steps",
             eval_steps=self.train_cfg["eval_steps"],
             learning_rate=self.train_cfg["learning_rate"],
             bf16=self.quant_cfg["use_bf16"],
             lr_scheduler_type=self.train_cfg["lr_scheduler_type"],
             warmup_ratio=self.train_cfg["warmup_ratio"],
-            resume_from_checkpoint=None
+            save_steps=self.train_cfg["save_steps"],
+            save_total_limit=self.train_cfg["save_total_limit"],
+            logging_steps=10
         )
+
+        # add for Train on completions only
+        response_template = "Answer:"
+        collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=self.tokenizer)
 
         trainer = SFTTrainer(
             model=self.model,
             peft_config=self.peft_config,
             max_seq_length=self.model_cfg["max_length"],
             tokenizer=self.tokenizer,
-            packing=True,
-            formatting_func=create_prompt,
+            packing=False,
+            formatting_func=create_prompt_update,
             args=args,
+            data_collator=collator,
             train_dataset=train_dataset,
             eval_dataset=val_dataset
         )
@@ -124,6 +135,7 @@ def generate(prompt, tokenizer, model, max_new_tokens=10):
 
 @hydra.main(version_base=None, config_path="../../config", config_name="conf_llm")
 def main(cfg):
+    cfg = OmegaConf.to_container(cfg, resolve=True)
 
     trainer = InstructTuneTrainer(cfg)
     train_dataset, val_dataset = trainer.load_dataset()
