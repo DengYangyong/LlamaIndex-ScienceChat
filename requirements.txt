@@ -22,4 +22,5 @@ langchain-elasticsearch
 peft
 trl
 flash-attn
-deepspeed==0.9.5
+deepspeed==0.9.5 #deepspeed   
+loguru

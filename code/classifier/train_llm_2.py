@@ -6,8 +6,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import torch
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from transformers import TrainingArguments
-from trl import SFTTrainer
-from data_loader import create_prompt
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+from data_loader import create_prompt, create_prompt_update
 from datasets import Dataset
 
 
@@ -84,15 +84,19 @@ class InstructTuneTrainer:
             learning_rate=self.train_cfg["learning_rate"],
             bf16=self.quant_cfg["use_bf16"]
         )
+        #add for Train on completions only
+        response_template = "Answer:"
+        collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=self.tokenizer)
 
         trainer = SFTTrainer(
             model=self.model,
             peft_config=self.peft_config,
             max_seq_length=self.model_cfg["max_length"],
             tokenizer=self.tokenizer,
-            packing=True,
-            formatting_func=create_prompt,
+            packing=False,
+            formatting_func=create_prompt_update, #update
             args=args,
+            data_collator=collator, #add
             train_dataset=train_dataset,
             eval_dataset=val_dataset
         )
