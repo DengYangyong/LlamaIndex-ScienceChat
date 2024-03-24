@@ -30,7 +30,7 @@ class KnownLedgeBaseQA:
         self.dense_retriever = creator.load_dense_retriever()
         self.sparse_retriever = creator.load_sparse_retriever()
 
-    def load_reranker(self, ):
+    def load_reranker(self):
         self.reranker = RerankerCrossEncoder(
             model=self.cfg["rerank"]["model_name_or_path"],
             max_length=self.cfg["rerank"]["max_length"],
@@ -58,9 +58,9 @@ class KnownLedgeBaseQA:
         reranker_results = self.reranker.rank(
             question,
             retriever_results,
-            top_k=2,
-            num_workers=2,
-            batch_size=2,
+            top_k=self.cfg["rerank"]["top_k"],
+            num_workers=self.cfg["rerank"]["num_workers"],
+            batch_size=self.cfg["rerank"]["batch_size"],
             return_documents=True
         )
 
@@ -69,4 +69,9 @@ class KnownLedgeBaseQA:
 
         # Generate answer
         prompt = create_prompt(sample)
-        answer = generate(prompt, self.tokenizer, self.llm, max_new_tokens=3)
+        answer = generate(
+            prompt,
+            self.tokenizer,
+            self.llm,
+            max_new_tokens=self.cfg["llm"]["max_new_tokens"]
+        )
