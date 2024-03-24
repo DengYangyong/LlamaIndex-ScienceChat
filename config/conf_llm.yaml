@@ -6,7 +6,7 @@ dataset:
   data_dir: data/llm_data/mcq_mix_v6
 
 lora:
-    rank: 64
+    rank: 64 #32
     alpha: 16
     dropout: 0.05
     bias: 'none'
@@ -35,7 +35,7 @@ model:
 
 train:
   num_epochs: 3
-  batch_size: 4  # per_device
+  batch_size: 4 #maybe 1 first         # per_device
   learning_rate: 2e-5
   eval_steps: 1000
   lr_scheduler_type: cosine
