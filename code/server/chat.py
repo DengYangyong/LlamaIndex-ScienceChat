@@ -75,3 +75,4 @@ class KnownLedgeBaseQA:
             self.llm,
             max_new_tokens=self.cfg["llm"]["max_new_tokens"]
         )
+        return answer
