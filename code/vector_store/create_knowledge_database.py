@@ -92,12 +92,12 @@ class KnowledgeDatabaseCreator:
         gc.collect()
         print("ElasticSearch index created")
 
-    def create_milvus_index(self, embed_config):
+    def create_milvus_index(self, embed_config, collection_name="collection"):
         # Create a Milvus vector store
         vector_store = MilvusVectorStore(
             url=self.milvus_config["url"],
             token=self.milvus_config["token"],
-            collection_name=self.milvus_config["collection_name"],
+            collection_name=collection_name,
             dim=self.milvus_config["dim"],
             overwrite=True
         )
@@ -120,8 +120,8 @@ class KnowledgeDatabaseCreator:
 
     def create_milvus_db(self):
         # Create new vector store indexes using different embeddings
-        MiniLM_index = self.create_milvus_index(self.MiniLM_config)
-        BGE_index = self.create_milvus_index(self.BGE_config)
+        MiniLM_index = self.create_milvus_index(self.MiniLM_config, collection_name="MiniLM")
+        BGE_index = self.create_milvus_index(self.BGE_config, collection_name="Bge")
 
         # Update the indexes with the documents
         documents = self.load_documents()
