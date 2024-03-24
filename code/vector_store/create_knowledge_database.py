@@ -42,8 +42,6 @@ class KnowledgeDatabaseCreator:
         self.MiniLM_config = config["model"]["MiniLM-L6-v2"]
         self.BGE_config = config["model"]["Bge-Base-En"]
         self.es_config = config["elasticsearch"]
-        self.dense_retriever = None
-        self.sparse_retriever = None
 
     def load_documents(self):
         # Load documents from a directory
@@ -141,21 +139,23 @@ class KnowledgeDatabaseCreator:
         BGE_index = self.create_milvus_index(self.BGE_config)
 
         # Create a query fusion retriever
-        self.dense_retriever = QueryFusionRetriever(
+        dense_retriever = QueryFusionRetriever(
             [MiniLM_index.as_retriever(), BGE_index.as_retriever()],
             similarity_top_k=2*self.doc_config["top_k"],
             num_queries=1,  # set this to 1 to disable query generation
             use_async=True,
             verbose=True
         )
+        return dense_retriever
 
     def load_sparse_retriever(self):
         # Load the elastic search retriever
-        self.sparse_retriever = CustomElasticBM25Retriever.create(
+        sparse_retriever = CustomElasticBM25Retriever.create(
             elasticsearch_url=self.es_config["url"],
             index_name=self.es_config["index"],
         )
-        self.sparse_retriever.n = self.doc_config["top_k"]
+        sparse_retriever.n = self.doc_config["top_k"]
+        return sparse_retriever
 
 
 @hydra.main(version_base=None, config_path="../../config", config_name="conf_database")
@@ -167,8 +167,8 @@ def main(cfg: DictConfig):
         creator.create_milvus_db()
 
     # Load the retrievers
-    creator.load_dense_retriever()
-    creator.load_sparse_retriever()
+    dense_retriever = creator.load_dense_retriever()
+    sparse_retriever = creator.load_sparse_retriever()
 
     query_df = pd.read_csv(cfg["dataset"]["test_query_file"])
     query_df["query"] = query_df[["prompt", "A", "B", "C", "D", "E"]].apply(lambda x: " | ".join(x), axis=1)
@@ -176,13 +176,13 @@ def main(cfg: DictConfig):
     for query in query_df["query"]:
         print("Query:", query)
 
-        nodes_with_scores = creator.dense_retriever.retrieve(query)
+        nodes_with_scores = dense_retriever.retrieve(query)
         print("Dense retriever results")
         for node in nodes_with_scores:
             print(f"Score: {node.score:.2f}")
             print(f"Content: {node.text[:100]}...")
 
-        documents = creator.sparse_retriever.get_relevant_documents(query)
+        documents = sparse_retriever.get_relevant_documents(query)
         print("Sparse retriever results")
         for doc in documents:
             print(f"Content: {doc['page_content'][:100]}...")

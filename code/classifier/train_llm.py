@@ -1,5 +1,4 @@
 import os
-
 import hydra
 from accelerate import Accelerator
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
@@ -47,8 +46,7 @@ class InstructTuneTrainer:
             task_type=self.lora_cfg["task_type"]
         )
 
-        local_rank = int(os.environ.get('LOCAL_RANK', '0'))
-        device_map = {'': local_rank}
+        device_map = {"": Accelerator().local_process_index}
 
         model = AutoModelForCausalLM.from_pretrained(
             self.model_cfg["model_name"],
@@ -82,7 +80,10 @@ class InstructTuneTrainer:
             per_device_train_batch_size=self.train_cfg["batch_size"],
             eval_steps=self.train_cfg["eval_steps"],
             learning_rate=self.train_cfg["learning_rate"],
-            bf16=self.quant_cfg["use_bf16"]
+            bf16=self.quant_cfg["use_bf16"],
+            lr_scheduler_type=self.train_cfg["lr_scheduler_type"],
+            warmup_ratio=self.train_cfg["warmup_ratio"],
+            resume_from_checkpoint=None
         )
 
         trainer = SFTTrainer(
@@ -96,9 +97,10 @@ class InstructTuneTrainer:
             train_dataset=train_dataset,
             eval_dataset=val_dataset
         )
+        trainer.accelerator.print(f"{trainer.model}")
 
         trainer.train()
-        trainer.save_model(self.train_cfg["model_output_dir"])
+        trainer.save_model()
 
     def evaluate(self, val_dataset: Dataset):
         pass
