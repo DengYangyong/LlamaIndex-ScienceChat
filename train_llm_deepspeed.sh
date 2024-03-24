@@ -1,2 +1,2 @@
 
-accelerate launch --config_file "configs/accelerate/accelerate_config.yaml" code/classifier/train_llm.py
+accelerate launch --config_file "config/accelerate/accelerate_config.yaml" code/classifier/train_llm.py

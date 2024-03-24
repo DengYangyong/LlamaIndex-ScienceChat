@@ -78,6 +78,7 @@ class InstructTuneTrainer:
             output_dir=self.model_cfg["model_output_dir"],
             num_train_epochs=self.train_cfg["num_epochs"],
             per_device_train_batch_size=self.train_cfg["batch_size"],
+            gradient_accumulation_steps=self.train_cfg["gradient_accumulation_steps"],
             eval_steps=self.train_cfg["eval_steps"],
             learning_rate=self.train_cfg["learning_rate"],
             bf16=self.quant_cfg["use_bf16"],
@@ -123,8 +124,6 @@ def generate(prompt, tokenizer, model, max_new_tokens=10):
 
 @hydra.main(version_base=None, config_path="../../config", config_name="conf_llm")
 def main(cfg):
-    cfg.ddp_find_unused_parameters = False
-    cfg.local_rank = -1
 
     trainer = InstructTuneTrainer(cfg)
     train_dataset, val_dataset = trainer.load_dataset()
