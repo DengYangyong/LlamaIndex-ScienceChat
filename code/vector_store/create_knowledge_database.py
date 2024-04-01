@@ -99,7 +99,8 @@ class KnowledgeDatabaseCreator:
             token=self.milvus_config["token"],
             collection_name=collection_name,
             dim=self.milvus_config["dim"],
-            overwrite=True
+            overwrite=True,
+            index_config=self.milvus_config["index_config"]#add hnsw and inner product config
         )
         print("Milvus vector store created")
 
@@ -135,9 +136,10 @@ class KnowledgeDatabaseCreator:
 
     def load_dense_retriever(self):
         # Load the milvus retriever
-        MiniLM_index = self.create_milvus_index(self.MiniLM_config)
-        BGE_index = self.create_milvus_index(self.BGE_config)
-
+        # MiniLM_index = self.create_milvus_index(self.MiniLM_config)
+        MiniLM_index= self.create_milvus_index(self.MiniLM_config, collection_name="MiniLM") #add collection name
+        # BGE_index = self.create_milvus_index(self.BGE_config)
+        BGE_index = self.create_milvus_index(self.BGE_config, collection_name="Bge")    #add collection name
         # Create a query fusion retriever
         dense_retriever = QueryFusionRetriever(
             [MiniLM_index.as_retriever(), BGE_index.as_retriever()],
